@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wallet Sentiment Tracker | PulseChain</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:        #0a0a12;
+    --surface:   #111122;
+    --border:    #1e1e3a;
+    --purple:    #7b2fff;
+    --cyan:      #00e5ff;
+    --green:     #00e676;
+    --yellow:    #ffd740;
+    --red:       #ff4d6a;
+    --neutral:   #8888aa;
+    --text:      #e8e8f0;
+    --subtext:   #6666aa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .header p {
+    color: var(--subtext);
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  /* INPUT */
+  .input-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .input-row {
+    display: flex;
+    gap: 10px;
+  }
+  .input-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-row input:focus {
+    border-color: var(--purple);
+  }
+  .input-row input::placeholder {
+    color: var(--subtext);
+  }
+  .btn {
+    background: var(--purple);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px 20px;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* STATUS */
+  .status {
+    text-align: center;
+    font-size: 13px;
+    color: var(--subtext);
+    padding: 12px 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* RESULT CARD */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: none;
+  }
+
+  /* GAUGE SECTION */
+  .gauge-section {
+    padding: 28px 24px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .wallet-address {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--subtext);
+    margin-bottom: 20px;
+    word-break: break-all;
+  }
+
+  /* THE GAUGE */
+  .gauge-wrap {
+    position: relative;
+    width: 280px;
+    height: 150px;
+    margin: 0 auto 8px;
+  }
+  .gauge-wrap svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .gauge-label-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 4px;
+    margin-bottom: 16px;
+  }
+  .gauge-label-row span {
+    font-size: 10px;
+    color: var(--subtext);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .sentiment-badge {
+    display: inline-block;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 18px;
+    margin-bottom: 12px;
+  }
+
+  .summary-text {
+    font-size: 13px;
+    color: var(--neutral);
+    line-height: 1.6;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* STATS GRID */
+  .stats-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stats-section h3 {
+    font-size: 11px;
+    color: var(--subtext);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 14px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .stat-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .stat-box .val {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-box .lbl {
+    font-size: 10px;
+    color: var(--subtext);
+    line-height: 1.3;
+  }
+
+  /* SIGNALS */
+  .signals-section {
+    padding: 20px 24px;
+  }
+  .signals-section h3 {
+    font-size: 11px;
+    color: var(--subtext);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 14px;
+  }
+  .signal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .signal-row:last-child { border-bottom: none; }
+  .signal-name { color: var(--neutral); }
+  .signal-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+  }
+  .pill-acc  { background: rgba(0,230,118,0.15); color: var(--green); }
+  .pill-mix  { background: rgba(136,136,170,0.15); color: var(--neutral); }
+  .pill-dist { background: rgba(255,77,106,0.15); color: var(--red); }
+
+  /* FOOTER NOTE */
+  .footer-note {
+    text-align: center;
+    font-size: 11px;
+    color: var(--subtext);
+    margin-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* COLOR HELPERS */
+  .c-green  { color: var(--green); }
+  .c-cyan   { color: var(--cyan); }
+  .c-yellow { color: var(--yellow); }
+  .c-red    { color: var(--red); }
+  .c-neutral{ color: var(--neutral); }
+
+  .badge-acc  { background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid rgba(0,230,118,0.3); }
+  .badge-macc { background: rgba(0,229,255,0.12); color: var(--cyan);  border: 1px solid rgba(0,229,255,0.25); }
+  .badge-mix  { background: rgba(136,136,170,0.15); color: var(--neutral); border: 1px solid rgba(136,136,170,0.25); }
+  .badge-mtr  { background: rgba(255,215,64,0.12); color: var(--yellow); border: 1px solid rgba(255,215,64,0.25); }
+  .badge-dist { background: rgba(255,77,106,0.15); color: var(--red);  border: 1px solid rgba(255,77,106,0.3); }
+
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .input-row { flex-direction: column; }
+    .btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="eyebrow">PulseChain Analytics</div>
+    <h1>Wallet Sentiment Tracker</h1>
+    <p>Paste any PulseChain wallet to see if they're accumulating or taking profits</p>
+  </div>
+
+  <div class="input-card">
+    <div class="input-row">
+      <input type="text" id="walletInput" placeholder="0x... PulseChain wallet address" />
+      <button class="btn" id="analyseBtn" onclick="analyseWallet()">Analyse</button>
+    </div>
+  </div>
+
+  <div class="status" id="statusMsg"></div>
+
+  <div class="result-card" id="resultCard">
+
+    <div class="gauge-section">
+      <div class="wallet-address" id="walletDisplay"></div>
+
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 280 150" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#00e676"/>
+              <stop offset="25%"  stop-color="#00e5ff"/>
+              <stop offset="50%"  stop-color="#8888aa"/>
+              <stop offset="75%"  stop-color="#ffd740"/>
+              <stop offset="100%" stop-color="#ff4d6a"/>
+            </linearGradient>
+            <clipPath id="arcClip">
+              <path d="M 20 140 A 120 120 0 0 1 260 140" />
+            </clipPath>
+          </defs>
+
+          <!-- Track background -->
+          <path d="M 20 140 A 120 120 0 0 1 260 140"
+                fill="none" stroke="#1e1e3a" stroke-width="18" stroke-linecap="round"/>
+
+          <!-- Colour arc -->
+          <path d="M 20 140 A 120 120 0 0 1 260 140"
+                fill="none" stroke="url(#gaugeGrad)" stroke-width="18"
+                stroke-linecap="round" opacity="0.85"/>
+
+          <!-- Needle -->
+          <g id="needle" transform="rotate(0, 140, 140)">
+            <line x1="140" y1="140" x2="140" y2="30"
+                  stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="140" cy="140" r="6" fill="white"/>
+            <circle cx="140" cy="140" r="3" fill="#0a0a12"/>
+          </g>
+
+          <!-- Score text -->
+          <text x="140" y="122" text-anchor="middle"
+                font-family="JetBrains Mono, monospace"
+                font-size="22" font-weight="700" fill="white" id="scoreText">—</text>
+        </svg>
+      </div>
+
+      <div class="gauge-label-row">
+        <span>🟢 Accumulating</span>
+        <span>Distributing 🔴</span>
+      </div>
+
+      <div class="sentiment-badge" id="sentimentBadge">—</div>
+      <div class="summary-text" id="summaryText"></div>
+    </div>
+
+    <div class="stats-section">
+      <h3>Activity Breakdown</h3>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="val c-green" id="statBuys">—</div>
+          <div class="lbl">Buy / Swap In<br>transactions</div>
+        </div>
+        <div class="stat-box">
+          <div class="val c-red" id="statSells">—</div>
+          <div class="lbl">Sell / Swap Out<br>transactions</div>
+        </div>
+        <div class="stat-box">
+          <div class="val c-cyan" id="statTxTotal">—</div>
+          <div class="lbl">Total txs<br>analysed</div>
+        </div>
+        <div class="stat-box">
+          <div class="val c-yellow" id="statFreq">—</div>
+          <div class="lbl">Avg txs<br>per day</div>
+        </div>
+        <div class="stat-box">
+          <div class="val" id="statAge">—</div>
+          <div class="lbl">Days of<br>history</div>
+        </div>
+        <div class="stat-box">
+          <div class="val c-neutral" id="statUnique">—</div>
+          <div class="lbl">Unique tokens<br>touched</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="signals-section">
+      <h3>Sentiment Signals</h3>
+      <div class="signal-row">
+        <span class="signal-name">Buy vs Sell ratio</span>
+        <span class="signal-pill" id="sigBuySell">—</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-name">Trading frequency</span>
+        <span class="signal-pill" id="sigFreq">—</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-name">Token diversity</span>
+        <span class="signal-pill" id="sigDiversity">—</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-name">Outbound transfers</span>
+        <span class="signal-pill" id="sigOutbound">—</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-name">Recency of activity</span>
+        <span class="signal-pill" id="sigRecency">—</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">
+    Data sourced from PulseChain Explorer · Last 100 transactions · Not financial advice
+  </div>
+
+</div>
+
+<script>
+var BLOCKSCOUT_API = 'https://api.scan.pulsechain.com/api';
+
+// Known PulseX router addresses (V1 + V2)
+var PULSEX_ROUTERS = [
+  '0x98bf93ebf5c380c0e6ae8e192a7e2e746702d20b',
+  '0x165c3410fc91ef562c50559f7d2289febda52d9f',
+  '0xa619f23c32ea8ecb4db2de6d1f99eaefcbe77f9a'
+];
+
+function isRouterAddress(addr) {
+  if (!addr) return false;
+  return PULSEX_ROUTERS.indexOf(addr.toLowerCase()) !== -1;
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+function analyseWallet() {
+  var raw = document.getElementById('walletInput').value.trim();
+  if (!raw || raw.length < 10) {
+    setStatus('Please enter a valid wallet address.');
+    return;
+  }
+  var addr = raw.toLowerCase();
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('analyseBtn').disabled = true;
+  setStatus('Fetching transaction history...');
+  fetchTransactions(addr);
+}
+
+function fetchTransactions(addr) {
+  var url = BLOCKSCOUT_API + '?module=account&action=txlist&address=' + addr + '&page=1&offset=100&sort=desc';
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 15000);
+
+  fetch(url, { signal: controller.signal })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      clearTimeout(timer);
+      if (!data.result || data.result.length === 0) {
+        setStatus('No transactions found for this wallet on PulseChain.');
+        document.getElementById('analyseBtn').disabled = false;
+        return;
+      }
+      setStatus('Analysing ' + data.result.length + ' transactions...');
+      processTransactions(addr, data.result);
+    })
+    .catch(function(err) {
+      clearTimeout(timer);
+      setStatus('Could not reach PulseChain Explorer. Try again in a moment.');
+      document.getElementById('analyseBtn').disabled = false;
+    });
+}
+
+function processTransactions(addr, txs) {
+
+  var buys = 0;
+  var sells = 0;
+  var outboundTransfers = 0;
+  var uniqueTokens = {};
+  var timestamps = [];
+  var swapTxs = 0;
+
+  for (var i = 0; i < txs.length; i++) {
+    var tx = txs[i];
+    var to = (tx.to || '').toLowerCase();
+    var from = (tx.from || '').toLowerCase();
+    var isOutbound = (from === addr);
+    var isInbound  = (to === addr);
+    var ts = parseInt(tx.timeStamp);
+    if (ts) timestamps.push(ts);
+
+    // Detect DEX swaps via router interaction
+    if (isRouterAddress(to) && isOutbound) {
+      // User initiated a swap — classify by input data signature
+      var input = tx.input || '';
+      // swapExactTokensForETH / swapExactTokensForTokens etc = selling
+      // swapExactETHForTokens / swapETHForExactTokens = buying
+      if (input.indexOf('0x7ff36ab5') === 0 || // swapExactETHForTokens
+          input.indexOf('0xfb3bdb41') === 0 || // swapETHForExactTokens
+          input.indexOf('0xb6f9de95') === 0) { // swapExactETHForTokensSupportingFeeOnTransferTokens
+        buys++;
+      } else if (input.indexOf('0x18cbafe5') === 0 || // swapExactTokensForETH
+                 input.indexOf('0x4a25d94a') === 0 || // swapTokensForExactETH
+                 input.indexOf('0x791ac947') === 0 || // swapExactTokensForETHSupportingFeeOnTransferTokens
+                 input.indexOf('0x38ed1739') === 0 || // swapExactTokensForTokens
+                 input.indexOf('0x8803dbee') === 0) { // swapTokensForExactTokens
+        sells++;
+      } else {
+        // Generic router interaction — count as swap activity
+        swapTxs++;
+      }
+    } else if (isOutbound && !isRouterAddress(to) && tx.value && parseInt(tx.value) > 0) {
+      // Outbound PLS transfer to non-router = sending/distributing
+      outboundTransfers++;
+    }
+
+    // Track token diversity via contract interactions
+    if (to && to !== addr && tx.input && tx.input.length > 2) {
+      uniqueTokens[to] = 1;
+    }
+  }
+
+  // Attribute unclassified swaps proportionally
+  if (swapTxs > 0) {
+    var total = buys + sells;
+    if (total === 0) {
+      buys += Math.round(swapTxs * 0.5);
+      sells += Math.round(swapTxs * 0.5);
+    } else {
+      buys  += Math.round(swapTxs * (buys / total));
+      sells += Math.round(swapTxs * (sells / total));
+    }
+  }
+
+  // Date range
+  var daysSpan = 1;
+  if (timestamps.length > 1) {
+    var oldest = Math.min.apply(null, timestamps);
+    var newest = Math.max.apply(null, timestamps);
+    daysSpan = Math.max(1, Math.round((newest - oldest) / 86400));
+  }
+
+  var txPerDay = (txs.length / daysSpan).toFixed(1);
+  var uniqueCount = Object.keys(uniqueTokens).length;
+
+  // Recency signal — how recently was the last tx?
+  var lastTs = timestamps.length > 0 ? Math.max.apply(null, timestamps) : 0;
+  var daysSinceLast = lastTs ? Math.round((Date.now() / 1000 - lastTs) / 86400) : 999;
+
+  // ---- SCORE CALCULATION ----
+  // Score 0–100: 0 = strong accumulator, 100 = strong distributor
+  var score = 50; // neutral start
+
+  // 1. Buy/sell ratio (most important signal, ±25)
+  var totalSwaps = buys + sells;
+  if (totalSwaps > 0) {
+    var sellRatio = sells / totalSwaps;
+    score += (sellRatio - 0.5) * 50;
+  }
+
+  // 2. Trading frequency (high freq = more trader-like, ±15)
+  var freqNum = parseFloat(txPerDay);
+  if (freqNum > 5)       score += 15;
+  else if (freqNum > 2)  score += 7;
+  else if (freqNum < 0.5) score -= 10;
+
+  // 3. Outbound transfers (distributing signal, ±10)
+  if (outboundTransfers > 5)      score += 10;
+  else if (outboundTransfers > 2) score += 5;
+
+  // 4. Token diversity (many tokens = active trader, ±5)
+  if (uniqueCount > 20)     score += 5;
+  else if (uniqueCount < 5) score -= 5;
+
+  // Clamp
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  renderResult(addr, txs.length, buys, sells, txPerDay, daysSpan, uniqueCount, outboundTransfers, daysSinceLast, score);
+}
+
+function getSentimentZone(score) {
+  if (score <= 20)  return { label: '🟢 Strong Accumulator', cls: 'badge-acc',  color: '#00e676' };
+  if (score <= 40)  return { label: '🔵 Mild Accumulator',   cls: 'badge-macc', color: '#00e5ff' };
+  if (score <= 60)  return { label: '⚪ Neutral / Mixed',    cls: 'badge-mix',  color: '#8888aa' };
+  if (score <= 80)  return { label: '🟡 Active Trader',      cls: 'badge-mtr',  color: '#ffd740' };
+  return                   { label: '🔴 Distributing',       cls: 'badge-dist', color: '#ff4d6a' };
+}
+
+function getPillClass(type) {
+  if (type === 'acc')  return 'pill-acc';
+  if (type === 'dist') return 'pill-dist';
+  return 'pill-mix';
+}
+
+function buildSummary(score, buys, sells, txPerDay, daysSpan, outbound) {
+  var zone = getSentimentZone(score);
+  var freq = parseFloat(txPerDay);
+  var parts = [];
+
+  if (buys + sells > 0) {
+    if (buys > sells * 2)        parts.push('buying far more than selling');
+    else if (buys > sells)       parts.push('more buys than sells');
+    else if (sells > buys * 2)   parts.push('selling significantly more than buying');
+    else if (sells > buys)       parts.push('more sells than buys');
+    else                         parts.push('roughly equal buys and sells');
+  }
+
+  if (freq > 5)       parts.push('very active on-chain');
+  else if (freq > 2)  parts.push('moderately active');
+  else if (freq < 0.5) parts.push('infrequent trader');
+
+  if (outbound > 5)   parts.push('moving funds out regularly');
+  else if (outbound > 2) parts.push('some outbound transfers detected');
+
+  var base = 'Over the last ' + daysSpan + ' day' + (daysSpan !== 1 ? 's' : '') + ', this wallet shows ';
+  if (parts.length === 0) return base + 'mixed signals with limited swap activity.';
+  return base + parts.join(', ') + '.';
+}
+
+function renderResult(addr, txTotal, buys, sells, txPerDay, daysSpan, uniqueCount, outbound, daysSinceLast, score) {
+
+  var zone = getSentimentZone(score);
+
+  // Wallet display
+  document.getElementById('walletDisplay').textContent = addr;
+
+  // Needle rotation: score 0 = -90deg (left), score 100 = +90deg (right)
+  var rotation = (score / 100) * 180 - 90;
+  document.getElementById('needle').setAttribute('transform', 'rotate(' + rotation + ', 140, 140)');
+  document.getElementById('scoreText').textContent = score;
+
+  // Badge
+  var badge = document.getElementById('sentimentBadge');
+  badge.textContent = zone.label;
+  badge.className = 'sentiment-badge ' + zone.cls;
+
+  // Summary
+  document.getElementById('summaryText').textContent = buildSummary(score, buys, sells, txPerDay, daysSpan, outbound);
+
+  // Stats
+  document.getElementById('statBuys').textContent    = buys;
+  document.getElementById('statSells').textContent   = sells;
+  document.getElementById('statTxTotal').textContent = txTotal;
+  document.getElementById('statFreq').textContent    = txPerDay;
+  document.getElementById('statAge').textContent     = daysSpan;
+  document.getElementById('statUnique').textContent  = uniqueCount;
+
+  // Signals
+  var totalSwaps = buys + sells;
+  var sellRatio = totalSwaps > 0 ? sells / totalSwaps : 0.5;
+  var buyRatioText = totalSwaps > 0 ? Math.round((buys/totalSwaps)*100) + '% buys' : 'No swaps';
+  var sigBStype = sellRatio < 0.35 ? 'acc' : sellRatio > 0.65 ? 'dist' : 'mix';
+  setSig('sigBuySell', buyRatioText, sigBStype);
+
+  var freqNum = parseFloat(txPerDay);
+  var freqText = freqNum > 5 ? 'High (' + txPerDay + '/day)' : freqNum > 1.5 ? 'Moderate' : 'Low';
+  var freqType = freqNum > 5 ? 'dist' : freqNum < 0.5 ? 'acc' : 'mix';
+  setSig('sigFreq', freqText, freqType);
+
+  var divText = uniqueCount > 20 ? 'Broad (' + uniqueCount + ' contracts)' : uniqueCount > 8 ? 'Moderate' : 'Focused';
+  var divType = uniqueCount > 20 ? 'dist' : uniqueCount < 5 ? 'acc' : 'mix';
+  setSig('sigDiversity', divText, divType);
+
+  var outText = outbound > 5 ? 'High (' + outbound + ' txs)' : outbound > 2 ? 'Some (' + outbound + ' txs)' : 'Low';
+  var outType = outbound > 5 ? 'dist' : outbound === 0 ? 'acc' : 'mix';
+  setSig('sigOutbound', outText, outType);
+
+  var recText = daysSinceLast < 2 ? 'Active today' : daysSinceLast < 7 ? 'This week' : daysSinceLast < 30 ? 'This month' : daysSinceLast + 'd ago';
+  var recType = daysSinceLast < 7 ? 'dist' : daysSinceLast > 30 ? 'acc' : 'mix';
+  setSig('sigRecency', recText, recType);
+
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('statusMsg').textContent = '';
+  document.getElementById('analyseBtn').disabled = false;
+}
+
+function setSig(id, text, type) {
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'signal-pill ' + getPillClass(type);
+}
+
+// Allow Enter key
+document.getElementById('walletInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') analyseWallet();
+});
+</script>
+</body>
+</html>
