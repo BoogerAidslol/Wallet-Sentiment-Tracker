@@ -448,21 +448,30 @@ function analyseWallet() {
 }
 
 function fetchTransactions(addr) {
-  var url = BLOCKSCOUT_API + '?module=account&action=txlist&address=' + addr + '&page=1&offset=100&sort=desc';
-  var controller = new AbortController();
-  var timer = setTimeout(function() { controller.abort(); }, 15000);
+  var txUrl    = BLOCKSCOUT_API + '?module=account&action=txlist&address=' + addr + '&page=1&offset=100&sort=desc';
+  var tokenUrl = BLOCKSCOUT_API + '?module=account&action=tokentx&address=' + addr + '&page=1&offset=100&sort=desc';
 
-  fetch(url, { signal: controller.signal })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 20000);
+
+  setStatus('Fetching native + token transactions...');
+
+  Promise.all([
+    fetch(txUrl,    { signal: controller.signal }).then(function(r) { return r.json(); }).catch(function() { return { result: [] }; }),
+    fetch(tokenUrl, { signal: controller.signal }).then(function(r) { return r.json(); }).catch(function() { return { result: [] }; })
+  ])
+    .then(function(results) {
       clearTimeout(timer);
-      if (!data.result || data.result.length === 0) {
+      var nativeTxs = (results[0] && results[0].result) || [];
+      var tokenTxs  = (results[1] && results[1].result) || [];
+
+      if (nativeTxs.length === 0 && tokenTxs.length === 0) {
         setStatus('No transactions found for this wallet on PulseChain.');
         document.getElementById('analyseBtn').disabled = false;
         return;
       }
-      setStatus('Analysing ' + data.result.length + ' transactions...');
-      processTransactions(addr, data.result);
+      setStatus('Analysing ' + nativeTxs.length + ' native + ' + tokenTxs.length + ' token transfers...');
+      processTransactions(addr, nativeTxs, tokenTxs);
     })
     .catch(function(err) {
       clearTimeout(timer);
@@ -471,12 +480,13 @@ function fetchTransactions(addr) {
     });
 }
 
-function processTransactions(addr, txs) {
+function processTransactions(addr, txs, tokenTxs) {
 
   var buys = 0;
   var sells = 0;
   var outboundTransfers = 0;
   var uniqueTokens = {};
+  var tokenActivity = {}; // symbol -> {in: n, out: n}
   var timestamps = [];
   var swapTxs = 0;
 
@@ -520,6 +530,35 @@ function processTransactions(addr, txs) {
     }
   }
 
+  // ---- TOKEN TRANSFER ANALYSIS ----
+  tokenTxs = tokenTxs || [];
+  for (var j = 0; j < tokenTxs.length; j++) {
+    var ttx = tokenTxs[j];
+    var tto   = (ttx.to || '').toLowerCase();
+    var tfrom = (ttx.from || '').toLowerCase();
+    var sym   = ttx.tokenSymbol || '?';
+    var tts   = parseInt(ttx.timeStamp);
+    if (tts) timestamps.push(tts);
+
+    if (!tokenActivity[sym]) tokenActivity[sym] = { inbound: 0, outbound: 0 };
+
+    if (tto === addr) {
+      // Receiving tokens = buying/accumulating signal
+      tokenActivity[sym].inbound++;
+      // If received FROM a router/pair, it's a swap buy
+      if (isRouterAddress(tfrom)) buys++;
+    } else if (tfrom === addr) {
+      // Sending tokens out
+      tokenActivity[sym].outbound++;
+      // If sent TO a router/pair, it's a swap sell
+      if (isRouterAddress(tto)) sells++;
+      else outboundTransfers++;
+    }
+
+    // Track unique tokens by contract
+    if (ttx.contractAddress) uniqueTokens[ttx.contractAddress.toLowerCase()] = sym;
+  }
+
   // Attribute unclassified swaps proportionally
   if (swapTxs > 0) {
     var total = buys + sells;
@@ -540,7 +579,8 @@ function processTransactions(addr, txs) {
     daysSpan = Math.max(1, Math.round((newest - oldest) / 86400));
   }
 
-  var txPerDay = (txs.length / daysSpan).toFixed(1);
+  var totalTxCount = txs.length + tokenTxs.length;
+  var txPerDay = (totalTxCount / daysSpan).toFixed(1);
   var uniqueCount = Object.keys(uniqueTokens).length;
 
   // Recency signal — how recently was the last tx?
@@ -575,7 +615,7 @@ function processTransactions(addr, txs) {
   // Clamp
   score = Math.max(0, Math.min(100, Math.round(score)));
 
-  renderResult(addr, txs.length, buys, sells, txPerDay, daysSpan, uniqueCount, outboundTransfers, daysSinceLast, score);
+  renderResult(addr, totalTxCount, buys, sells, txPerDay, daysSpan, uniqueCount, outboundTransfers, daysSinceLast, score, tokenActivity);
 }
 
 function getSentimentZone(score) {
@@ -617,9 +657,21 @@ function buildSummary(score, buys, sells, txPerDay, daysSpan, outbound) {
   return base + parts.join(', ') + '.';
 }
 
-function renderResult(addr, txTotal, buys, sells, txPerDay, daysSpan, uniqueCount, outbound, daysSinceLast, score) {
+function renderResult(addr, txTotal, buys, sells, txPerDay, daysSpan, uniqueCount, outbound, daysSinceLast, score, tokenActivity) {
 
   var zone = getSentimentZone(score);
+
+  // Top active tokens summary — appended to the summary text
+  var topTokensText = '';
+  if (tokenActivity) {
+    var tokenList = Object.keys(tokenActivity).map(function(sym) {
+      var t = tokenActivity[sym];
+      return { sym: sym, total: t.inbound + t.outbound };
+    }).sort(function(a,b) { return b.total - a.total; }).slice(0, 3);
+    if (tokenList.length > 0) {
+      topTokensText = ' Most active in: ' + tokenList.map(function(t) { return t.sym; }).join(', ') + '.';
+    }
+  }
 
   // Wallet display
   document.getElementById('walletDisplay').textContent = addr;
@@ -635,7 +687,7 @@ function renderResult(addr, txTotal, buys, sells, txPerDay, daysSpan, uniqueCoun
   badge.className = 'sentiment-badge ' + zone.cls;
 
   // Summary
-  document.getElementById('summaryText').textContent = buildSummary(score, buys, sells, txPerDay, daysSpan, outbound);
+  document.getElementById('summaryText').textContent = buildSummary(score, buys, sells, txPerDay, daysSpan, outbound) + topTokensText;
 
   // Stats
   document.getElementById('statBuys').textContent    = buys;
